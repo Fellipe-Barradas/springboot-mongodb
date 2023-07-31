@@ -21,7 +21,7 @@ public class DemoApplication {
 	}
 
 	@Bean
-	CommandLineRunner runner(StudentRepository studentRepository, MongoTemplate mongoTemplate) {
+	CommandLineRunner runner(StudentRepository studentRepository, MongoTemplate mongoTemplate){
 		return args -> {
 			Address address = new Address("Brasil", "Teresina", "552");
 			Student student = new Student(
@@ -34,17 +34,27 @@ public class DemoApplication {
 					BigDecimal.TEN,
 					LocalDateTime.now()
 			);
-			Query query = new Query().addCriteria(Criteria.where("email").is(student.getEmail()));
-			List<Student> students = mongoTemplate.find(query, Student.class);
-			if(students.size() > 1){
-				throw new Exception("Too many students using this email: " + student.getEmail());
-			}
+			// oldMethodToFindUserByEmail(student, mongoTemplate, studentRepository);
 
-			if(students.isEmpty()){
+			studentRepository.findStudentByEmail(student.getEmail()).ifPresentOrElse(student1 -> {
+				throw new RuntimeException("Student already exists: " + student.getEmail());
+			}, () -> {
 				studentRepository.insert(student);
-			}else {
-				throw new Exception("Student already exists: " + student.getEmail());
-			}
+			});
 		};
+	}
+
+	public static void oldMethodToFindUserByEmail(Student student, MongoTemplate mongoTemplate, StudentRepository studentRepository) throws Exception{
+		Query query = new Query().addCriteria(Criteria.where("email").is(student.getEmail()));
+		List<Student> students = mongoTemplate.find(query, Student.class);
+		if(students.size() > 1){
+			throw new Exception("Too many students using this email: " + student.getEmail());
+		}
+
+		if(students.isEmpty()){
+			studentRepository.insert(student);
+		}else {
+			throw new Exception("Student already exists: " + student.getEmail());
+		}
 	}
 }
